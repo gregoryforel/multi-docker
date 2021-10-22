@@ -1,0 +1,50 @@
+language: generic 
+sudo: required
+services:
+  # Tells Travis we need docker
+  - docker
+
+# Series of commands / setup executed before our tests are ran
+before_install:
+  # Build a test version of our client React app (prod one does not allow to run tests)
+  # Note that we can name the image as we please (<DOCKER_USERNAME>/<WHATEVER_IMAGE-NAME>)
+  # Note that this travis.yml file is at the root. Hence, we need ./client/Dockerfile.dev to find our file.
+  # Same goes for our build context: we generally specify the current context (just .), but this time
+  # we want to build it in the client context: ./client
+  - docker build -t gregoryforel/react-test -f ./client/Dockerfile.dev ./client
+
+script:
+  # We override environment variables with -e CI=TRUE
+  # CI=TRUE forces Jest to run in CI-mode, and tests will only run once instead of launching the watcher.
+  # Otherwise, Travis would hang forever hoping for Node to exit the tests before continuing the process.
+  - docker run -e CI=true gregoryforel/react-test npm test
+ 
+after_success:
+  # Note that we don't need to specify the Dockerfile (./client/Dockerfile => ./client) per convention
+  - docker build -t gregoryforel/multi-client -f ./client
+  - docker build -t gregoryforel/multi-nginx -f ./nginx
+  - docker build -t gregoryforel/multi-server -f ./server
+  - docker build -t gregoryforel/multi-worker -f ./worker
+  # Log in to the docker CLI
+  - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_ID" --password-stdin
+  # Take those images and push them to docker hub
+  - docker push gregoryforel/multi-client
+  - docker push gregoryforel/multi-nginx
+  - docker push gregoryforel/multi-server
+  - docker push gregoryforel/multi-worker
+
+# deploy:
+#   # Travis is pre-configured with some providers. ElasticBeanstalk is one of them
+#   provider: elasticbeanstalk
+#   region: "eu-west-1"
+#   app: "docker"
+#   env: "Docker-env"
+#   # When Travis deploys, it's gonna take all the file and zip them into one.
+#   # We will put that on an AWS S3 instance. Beanstalk already prepared it for us.
+#   bucket_name: "elasticbeanstalk-eu-west-1-907738920570"
+#   bucket_path: "docker" # Should be equal to your app name
+#   on:
+#     # We only deploy when master is updated.
+#     branch: master
+#   access_key_id: $AWS_ACCESS_KEY
+#   secret_access_key: $AWS_SECRET_KEY
