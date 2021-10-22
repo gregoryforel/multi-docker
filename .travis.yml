@@ -21,10 +21,10 @@ script:
  
 after_success:
   # Note that we don't need to specify the Dockerfile (./client/Dockerfile => ./client) per convention
-  - docker build -t gregoryforel/multi-client -f ./client
-  - docker build -t gregoryforel/multi-nginx -f ./nginx
-  - docker build -t gregoryforel/multi-server -f ./server
-  - docker build -t gregoryforel/multi-worker -f ./worker
+  - docker build -t gregoryforel/multi-client ./client
+  - docker build -t gregoryforel/multi-nginx ./nginx
+  - docker build -t gregoryforel/multi-server ./server
+  - docker build -t gregoryforel/multi-worker ./worker
   # Log in to the docker CLI
   - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_ID" --password-stdin
   # Take those images and push them to docker hub
