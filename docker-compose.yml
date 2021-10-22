@@ -1,0 +1,58 @@
+version: '3'
+services:
+    postgres:
+        image: 'postgres:latest'
+        environment:
+            - POSTGRES_PASSWORD=postgres_password
+    redis:
+        image: 'redis:latest'
+    nginx:
+        depends_on:
+            - api
+            - client
+        restart: always
+        build:
+            dockerfile: Dockerfile.dev
+            context: ./nginx
+        ports:
+            - '3050:80' # 3050 or other, up to us
+    api:
+        build:
+            dockerfile: Dockerfile.dev
+            context: ./server
+        volumes:
+            # This means: inside the container, don't try to override node_modules
+            # Note that the path starts with app because in Dockefile.dev, the workdir specified is app
+            - /app/node_modules
+            # Anytime our application tries to access anything inside the app directory inside the container,
+            # except for the node_modules folder, it's going to be redirected back to the server directory inside of our
+            # current project's folder.
+            # So any change we make inside that server will be automatically reflected inside of the app folder of our container
+            # This makes sure we don't have to rebuild our image everytime we change something.
+            - ./server:/app
+        environment:
+            - REDIS_HOST=redis # Here, we just use the service' name.
+            - REDIS_PORT=6379
+            - PGUSER=postgres
+            - PGHOST=postgres
+            - PGDATABASE=postgres
+            - PGPASSWORD=postgres_password
+            - PGPORT=5432
+    client:
+        stdin_open: true
+        build:
+            dockerfile: Dockerfile.dev
+            context: ./client
+        volumes:
+            - /app/node_modules
+            - ./client:/app
+    worker:
+        build:
+            dockerfile: Dockerfile.dev
+            context: ./worker
+        volumes:
+            - /app/node_modules
+            - ./worker:/app
+        environment:
+            - REDIS_HOST=redis
+            - REDIS_PORT=6379
